@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SceneForge — Screenplay Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --panel: #1e1e1e;
+    --border: #2e2e2e;
+    --accent: #e8d5a3;
+    --accent2: #c4a55a;
+    --text: #f0ead6;
+    --muted: #7a7060;
+    --danger: #c45a5a;
+    --success: #5ab87a;
+    --radius: 4px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Special Elite', cursive;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .logo span { color: var(--muted); font-size: 13px; display: block; letter-spacing: 3px; font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .save-indicator {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.3s;
+  }
+  .save-indicator.saved { color: var(--success); }
+  .save-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .save-indicator.saved .save-dot { background: var(--success); }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 280px 1fr 340px; height: calc(100vh - 65px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+  .sidebar-title {
+    padding: 0 20px 12px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
+  .scene-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .scene-item:hover { background: var(--panel); color: var(--text); }
+  .scene-item.active { border-left-color: var(--accent); background: var(--panel); color: var(--accent); }
+  .scene-item .scene-num { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent2); margin-bottom: 3px; }
+  .scene-item .scene-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .add-scene-btn {
+    margin: 12px 20px 0;
+    width: calc(100% - 40px);
+    padding: 10px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    border-radius: var(--radius);
+  }
+  .add-scene-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MAIN EDITOR */
+  .editor {
+    overflow-y: auto;
+    padding: 40px 48px;
+    background: var(--bg);
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .step-badge {
+    background: var(--accent2);
+    color: #1a1200;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  .step-title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+    font-family: 'Special Elite', cursive;
+    letter-spacing: 1px;
+  }
+
+  .section-block {
+    margin-bottom: 36px;
+  }
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* FORM CONTROLS */
+  .toggle-group {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    width: fit-content;
+  }
+  .toggle-btn {
+    padding: 10px 28px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: #1a1200;
+    font-weight: 500;
+  }
+
+  input[type="text"], input[type="number"], textarea, select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent2); }
+  textarea { resize: vertical; min-height: 70px; line-height: 1.6; }
+  select option { background: var(--panel); }
+
+  .input-row { display: flex; gap: 12px; }
+  .input-row > * { flex: 1; }
+
+  .char-count-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .char-count-row label {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .char-count-row input { max-width: 80px; text-align: center; }
+
+  /* CHARACTER BLOCKS */
+  .char-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .char-block-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .char-pill {
+    background: var(--accent2);
+    color: #1a1200;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  /* DIALOGUE BLOCKS */
+  .dialogue-list { display: flex; flex-direction: column; gap: 14px; }
+  .dialogue-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .dialogue-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #222;
+    border-bottom: 1px solid var(--border);
+  }
+  .dialogue-header select {
+    max-width: 160px;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: var(--panel);
+  }
+  .dialogue-body { padding: 12px 14px; display: flex; gap: 12px; flex-direction: column; }
+  .expr-select {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .expr-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s;
+    letter-spacing: 0.5px;
+  }
+  .expr-btn.active { background: var(--accent); color: #1a1200; border-color: var(--accent); }
+  .remove-btn {
+    margin-left: auto;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid #333;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s;
+  }
+  .remove-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  .add-dialogue-btn {
+    padding: 10px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    width: 100%;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .add-dialogue-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* SHOTS */
+  .shots-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .shot-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .shot-type-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .shot-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s;
+  }
+  .shot-btn.active { background: var(--accent2); color: #1a1200; border-color: var(--accent2); }
+
+  .add-shot-btn {
+    padding: 10px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    grid-column: span 2;
+  }
+  .add-shot-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .remove-shot-btn {
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid #333;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-left: auto;
+    display: block;
+  }
+  .remove-shot-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* SCENE ENDING */
+  .ending-group { display: flex; gap: 10px; flex-wrap: wrap; }
+  .ending-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .ending-btn.active { background: var(--accent); color: #1a1200; border-color: var(--accent); }
+
+  /* PREVIEW PANEL */
+  .preview {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .preview-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .preview-content {
+    padding: 24px 20px;
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .prev-scene-heading { color: var(--accent); font-weight: 500; text-transform: uppercase; margin-bottom: 8px; margin-top: 20px; }
+  .prev-scene-heading:first-child { margin-top: 0; }
+  .prev-action { color: #b0a890; margin-bottom: 8px; }
+  .prev-char { text-align: center; color: var(--accent2); text-transform: uppercase; margin-top: 10px; }
+  .prev-paren { text-align: center; color: var(--muted); font-style: italic; }
+  .prev-dialogue { margin: 0 40px; color: var(--text); margin-bottom: 4px; }
+  .prev-shot { color: #5a8ab8; font-size: 11px; margin: 4px 0; }
+  .prev-transition { text-align: right; color: var(--muted); text-transform: uppercase; margin-top: 10px; }
+  .prev-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* BUTTONS */
+  .btn {
+    padding: 10px 22px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    border-radius: var(--radius);
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #1a1200; font-weight: 500; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-export { background: var(--accent2); color: #1a1200; font-weight: 600; font-size: 13px; padding: 11px 28px; }
+  .btn-export:hover { background: var(--accent); }
+  .btn-danger { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* SCENE NAV */
+  .scene-nav {
+    display: flex;
+    gap: 10px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* NOTIFICATION */
+  .notif {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: var(--success);
+    color: #002a14;
+    padding: 12px 22px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    border-radius: var(--radius);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    z-index: 9999;
+    font-weight: 500;
+  }
+  .notif.show { opacity: 1; transform: translateY(0); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 2;
+  }
+  .empty-state .big { font-size: 32px; margin-bottom: 12px; opacity: 0.3; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    SCENEFORGE
+    <span>SCREENPLAY BUILDER</span>
+  </div>
+  <div class="header-actions">
+    <div class="save-indicator" id="saveIndicator">
+      <div class="save-dot"></div>
+      <span id="saveLabel">no changes</span>
+    </div>
+    <button class="btn btn-outline" onclick="clearAll()" style="font-size:11px;padding:8px 14px;color:var(--danger);border-color:#3a2020;" title="Clear all scenes">✕ CLEAR ALL</button>
+    <button class="btn btn-outline" onclick="addScene()">+ NEW SCENE</button>
+    <button class="btn btn-export" onclick="exportToDocx()">⬇ EXPORT .DOCX</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Scenes</div>
+    <div id="sceneList"></div>
+    <button class="add-scene-btn" onclick="addScene()">+ ADD SCENE</button>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor" id="editor">
+    <div class="empty-state">
+      <div class="big">🎬</div>
+      <div>No scenes yet.</div>
+      <div>Click "+ ADD SCENE" to begin.</div>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview">
+    <div class="preview-header">
+      Live Preview
+      <span id="sceneCountLabel">0 scenes</span>
+    </div>
+    <div class="preview-content" id="previewContent">
+      <div class="empty-state" style="padding:40px 10px;">
+        <div class="big">📄</div>
+        <div>Preview will appear here</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif">✓ Exported successfully!</div>
+
+<script>
+// ============================================================
+// DATA MODEL
+// ============================================================
+let scenes = [];
+let activeSceneIdx = -1;
+
+const EXPRESSIONS = ['neutral','happy','sad','angry','shocked','scared','confused','disgusted','smug','teary','intense','laughing'];
+const SHOT_TYPES = ['EWS','WS','MS','MCU','CU','ECU','OTS','POV','2-SHOT','INSERT'];
+const ENDINGS = ['CUT TO:', 'SMASH CUT TO:', 'DISSOLVE TO:', 'FADE TO BLACK.', 'END OF SCENE'];
+
+function newScene() {
+  return {
+    id: Date.now(),
+    intExt: 'INT',
+    location: '',
+    timeOfDay: 'DAY',
+    charCount: 1,
+    characters: [''],
+    dialogues: [],
+    shots: [],
+    ending: 'CUT TO:'
+  };
+}
+
+function newDialogue() {
+  return { charIdx: 0, line: '', expression: 'neutral' };
+}
+
+function newShot() {
+  return { type: 'CU', charIdx: 0, notes: '' };
+}
+
+// ============================================================
+// RENDER SIDEBAR
+// ============================================================
+function renderSidebar() {
+  const list = document.getElementById('sceneList');
+  if (scenes.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = scenes.map((s, i) => {
+    const heading = `${s.intExt}. ${s.location || 'LOCATION'} — ${s.timeOfDay}`;
+    return `<div class="scene-item ${i === activeSceneIdx ? 'active' : ''}" onclick="selectScene(${i})">
+      <div class="scene-num">SCENE ${i+1}</div>
+      <div class="scene-label">${heading}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('sceneCountLabel').textContent = `${scenes.length} scene${scenes.length !== 1 ? 's' : ''}`;
+}
+
+// ============================================================
+// RENDER EDITOR
+// ============================================================
+function renderEditor() {
+  const editor = document.getElementById('editor');
+  if (activeSceneIdx < 0 || !scenes[activeSceneIdx]) {
+    editor.innerHTML = `<div class="empty-state"><div class="big">🎬</div><div>No scenes yet.</div><div>Click "+ ADD SCENE" to begin.</div></div>`;
+    return;
+  }
+  const s = scenes[activeSceneIdx];
+  const idx = activeSceneIdx;
+
+  // Characters HTML
+  let charsHtml = '';
+  for (let c = 0; c < s.charCount; c++) {
+    charsHtml += `<div class="char-block">
+      <div class="char-block-header">
+        <span class="char-pill">CHAR ${c+1}</span>
+      </div>
+      <input type="text" placeholder="Character name (e.g. MAYA)" value="${s.characters[c]||''}" 
+        oninput="updateChar(${idx}, ${c}, this.value)" />
+    </div>`;
+  }
+
+  // Dialogues HTML
+  let dialoguesHtml = '';
+  s.dialogues.forEach((d, di) => {
+    const charOptions = s.characters.map((c,ci) => `<option value="${ci}" ${ci===d.charIdx?'selected':''}>${c||'CHAR '+(ci+1)}</option>`).join('');
+    const exprBtns = EXPRESSIONS.map(e => `<button class="expr-btn ${d.expression===e?'active':''}" onclick="setExpr(${idx},${di},'${e}')">${e}</button>`).join('');
+    dialoguesHtml += `<div class="dialogue-block">
+      <div class="dialogue-header">
+        <select onchange="setDialogueChar(${idx},${di},this.value)">${charOptions}</select>
+        <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">SPEAKS</span>
+        <button class="remove-btn" onclick="removeDialogue(${idx},${di})">✕ remove</button>
+      </div>
+      <div class="dialogue-body">
+        <textarea placeholder="Write dialogue here..." oninput="setDialogueLine(${idx},${di},this.value)">${d.line}</textarea>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px;">EXPRESSION</div>
+        <div class="expr-select">${exprBtns}</div>
+      </div>
+    </div>`;
+  });
+
+  // Shots HTML
+  let shotsHtml = '';
+  s.shots.forEach((sh, si) => {
+    const charOptions = s.characters.map((c,ci) => `<option value="${ci}" ${ci===sh.charIdx?'selected':''}>${c||'CHAR '+(ci+1)}</option>`).join('');
+    const typeBtns = SHOT_TYPES.map(t => `<button class="shot-btn ${sh.type===t?'active':''}" onclick="setShotType(${idx},${si},'${t}')">${t}</button>`).join('');
+    shotsHtml += `<div class="shot-block">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;">SHOT ${si+1}</span>
+        <button class="remove-shot-btn" onclick="removeShot(${idx},${si})">✕</button>
+      </div>
+      <div class="shot-type-group">${typeBtns}</div>
+      <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:4px;">ON CHARACTER</div>
+      <select onchange="setShotChar(${idx},${si},this.value)" style="font-size:12px;padding:7px 10px;">${charOptions}</select>
+      <input type="text" placeholder="Notes (optional)" value="${sh.notes}" oninput="setShotNotes(${idx},${si},this.value)" style="font-size:12px;" />
+    </div>`;
+  });
+
+  // Ending buttons
+  const endingBtns = ENDINGS.map(e => `<button class="ending-btn ${s.ending===e?'active':''}" onclick="setEnding(${idx},'${e}')">${e}</button>`).join('');
+
+  editor.innerHTML = `
+    <div class="step-header">
+      <span class="step-badge">SCENE ${idx+1}</span>
+      <span class="step-title">Scene Setup</span>
+      <button class="btn btn-danger" style="margin-left:auto;font-size:11px;padding:6px 14px;" onclick="deleteScene(${idx})">DELETE SCENE</button>
+    </div>
+
+    <!-- INT/EXT + LOCATION -->
+    <div class="section-block">
+      <div class="section-label">Location & Time</div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+        <div class="toggle-group">
+          <button class="toggle-btn ${s.intExt==='INT'?'active':''}" onclick="setIntExt(${idx},'INT')">INT</button>
+          <button class="toggle-btn ${s.intExt==='EXT'?'active':''}" onclick="setIntExt(${idx},'EXT')">EXT</button>
+          <button class="toggle-btn ${s.intExt==='INT/EXT'?'active':''}" onclick="setIntExt(${idx},'INT/EXT')">INT/EXT</button>
+        </div>
+        <div class="toggle-group">
+          <button class="toggle-btn ${s.timeOfDay==='DAY'?'active':''}" onclick="setTime(${idx},'DAY')">DAY</button>
+          <button class="toggle-btn ${s.timeOfDay==='NIGHT'?'active':''}" onclick="setTime(${idx},'NIGHT')">NIGHT</button>
+          <button class="toggle-btn ${s.timeOfDay==='DAWN'?'active':''}" onclick="setTime(${idx},'DAWN')">DAWN</button>
+          <button class="toggle-btn ${s.timeOfDay==='DUSK'?'active':''}" onclick="setTime(${idx},'DUSK')">DUSK</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <input type="text" placeholder="Specific location (e.g. COFFEE SHOP — CORNER TABLE)" 
+          value="${s.location}" oninput="setLocation(${idx}, this.value)" />
+      </div>
+    </div>
+
+    <!-- CHARACTERS -->
+    <div class="section-block">
+      <div class="section-label">Characters</div>
+      <div class="char-count-row">
+        <label>How many characters?</label>
+        <input type="number" min="1" max="8" value="${s.charCount}" onchange="setCharCount(${idx}, this.value)" />
+      </div>
+      ${charsHtml}
+    </div>
+
+    <!-- DIALOGUES -->
+    <div class="section-block">
+      <div class="section-label">Dialogue</div>
+      <div class="dialogue-list">${dialoguesHtml}</div>
+      <button class="add-dialogue-btn" style="margin-top:10px;" onclick="addDialogue(${idx})">+ ADD DIALOGUE LINE</button>
+    </div>
+
+    <!-- SHOTS -->
+    <div class="section-block">
+      <div class="section-label">Shot List</div>
+      <div class="shots-grid">
+        ${shotsHtml}
+        <button class="add-shot-btn" onclick="addShot(${idx})">+ ADD SHOT</button>
+      </div>
+    </div>
+
+    <!-- ENDING -->
+    <div class="section-block">
+      <div class="section-label">Scene Ending</div>
+      <div class="ending-group">${endingBtns}</div>
+    </div>
+
+    <div class="scene-nav">
+      ${idx > 0 ? `<button class="btn btn-outline" onclick="selectScene(${idx-1})">← PREV SCENE</button>` : ''}
+      <button class="btn btn-primary" onclick="addScene()">+ NEW SCENE</button>
+      ${idx < scenes.length-1 ? `<button class="btn btn-outline" onclick="selectScene(${idx+1})">NEXT SCENE →</button>` : ''}
+    </div>
+  `;
+}
+
+// ============================================================
+// RENDER PREVIEW
+// ============================================================
+function renderPreview() {
+  const el = document.getElementById('previewContent');
+  if (scenes.length === 0) {
+    el.innerHTML = `<div class="empty-state" style="padding:40px 10px;"><div class="big">📄</div><div>Preview will appear here</div></div>`;
+    return;
+  }
+  let html = '';
+  scenes.forEach((s, i) => {
+    const heading = `${s.intExt}. ${s.location || 'LOCATION'} — ${s.timeOfDay}`;
+    html += `<div class="prev-scene-heading">SCENE ${i+1} — ${heading}</div>`;
+    s.dialogues.forEach(d => {
+      const name = s.characters[d.charIdx] || `CHAR ${d.charIdx+1}`;
+      html += `<div class="prev-char">${name}</div>`;
+      if (d.expression && d.expression !== 'neutral') {
+        html += `<div class="prev-paren">(${d.expression})</div>`;
+      }
+      if (d.line) html += `<div class="prev-dialogue">${d.line}</div>`;
+    });
+    s.shots.forEach((sh, si) => {
+      const name = s.characters[sh.charIdx] || `CHAR ${sh.charIdx+1}`;
+      html += `<div class="prev-shot">[SHOT ${si+1}: ${sh.type} on ${name}${sh.notes?' — '+sh.notes:''}]</div>`;
+    });
+    if (s.ending) html += `<div class="prev-transition">${s.ending}</div>`;
+    if (i < scenes.length - 1) html += `<hr class="prev-divider">`;
+  });
+  el.innerHTML = html;
+}
+
+// ============================================================
+// SCENE ACTIONS
+// ============================================================
+function addScene() {
+  const s = newScene();
+  scenes.push(s);
+  activeSceneIdx = scenes.length - 1;
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+}
+
+function selectScene(i) {
+  activeSceneIdx = i;
+  renderSidebar();
+  renderEditor();
+}
+
+function deleteScene(i) {
+  scenes.splice(i, 1);
+  if (activeSceneIdx >= scenes.length) activeSceneIdx = scenes.length - 1;
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+}
+
+// ============================================================
+// FIELD SETTERS
+// ============================================================
+function setIntExt(i, val) { scenes[i].intExt = val; renderEditor(); renderPreview(); }
+function setTime(i, val) { scenes[i].timeOfDay = val; renderEditor(); renderPreview(); }
+function setLocation(i, val) { scenes[i].location = val.toUpperCase(); renderSidebar(); renderPreview(); }
+function setEnding(i, val) { scenes[i].ending = val; renderEditor(); renderPreview(); }
+
+function setCharCount(i, val) {
+  const n = Math.max(1, Math.min(8, parseInt(val)||1));
+  scenes[i].charCount = n;
+  while (scenes[i].characters.length < n) scenes[i].characters.push('');
+  renderEditor(); renderPreview();
+}
+function updateChar(i, c, val) {
+  scenes[i].characters[c] = val.toUpperCase();
+  renderPreview();
+}
+
+function addDialogue(i) { scenes[i].dialogues.push(newDialogue()); renderEditor(); }
+function removeDialogue(i, di) { scenes[i].dialogues.splice(di,1); renderEditor(); renderPreview(); }
+function setDialogueChar(i, di, val) { scenes[i].dialogues[di].charIdx = parseInt(val); renderPreview(); }
+function setDialogueLine(i, di, val) { scenes[i].dialogues[di].line = val; renderPreview(); }
+function setExpr(i, di, val) { scenes[i].dialogues[di].expression = val; renderEditor(); renderPreview(); }
+
+function addShot(i) { scenes[i].shots.push(newShot()); renderEditor(); }
+function removeShot(i, si) { scenes[i].shots.splice(si,1); renderEditor(); renderPreview(); }
+function setShotType(i, si, val) { scenes[i].shots[si].type = val; renderEditor(); renderPreview(); }
+function setShotChar(i, si, val) { scenes[i].shots[si].charIdx = parseInt(val); renderPreview(); }
+function setShotNotes(i, si, val) { scenes[i].shots[si].notes = val; renderPreview(); }
+
+// ============================================================
+// EXPORT TO DOCX
+// ============================================================
+function exportToDocx() {
+  if (!window.docx) { alert('docx library not loaded.'); return; }
+  if (scenes.length === 0) { alert('Add at least one scene before exporting.'); return; }
+
+  const { Document, Packer, Paragraph, TextRun, AlignmentType, PageBreak, BorderStyle } = window.docx;
+
+  const COURIER = 'Courier New';
+  const sz = 24;
+
+  const sp = (text, opts = {}) => new TextRun({ text, font: COURIER, size: sz, ...opts });
+
+  const children = [];
+
+  // Title page elements
+  children.push(new Paragraph({ spacing:{before:2880,after:0}, alignment: AlignmentType.CENTER, children:[new TextRun({text:'SCREENPLAY', font:'Courier New', size:52, bold:true, allCaps:true})] }));
+  children.push(new Paragraph({ spacing:{before:240,after:0}, alignment: AlignmentType.CENTER, children:[sp('Built with SceneForge', {size:20, italics:true})] }));
+  children.push(new Paragraph({ spacing:{before:1440,after:0}, alignment: AlignmentType.CENTER, children:[sp(new Date().toLocaleDateString(), {size:20})] }));
+  children.push(new Paragraph({ children:[new PageBreak()] }));
+
+  scenes.forEach((s, idx) => {
+    // Scene heading
+    const heading = `${s.intExt}. ${s.location || 'LOCATION'} — ${s.timeOfDay}`;
+    children.push(new Paragraph({
+      spacing:{before:idx===0?0:720, after:0},
+      children:[sp(heading, {bold:true, allCaps:true})]
+    }));
+
+    // Blank line after heading
+    children.push(new Paragraph({children:[sp('')]}));
+
+    // Dialogues
+    s.dialogues.forEach(d => {
+      const name = s.characters[d.charIdx] || `CHAR ${d.charIdx+1}`;
+      // Character name (centered-ish via indent)
+      children.push(new Paragraph({
+        indent:{left:3600},
+        spacing:{before:240, after:0},
+        children:[sp(name, {allCaps:true})]
+      }));
+      // Parenthetical
+      if (d.expression && d.expression !== 'neutral') {
+        children.push(new Paragraph({
+          indent:{left:2520, right:2520},
+          spacing:{before:0, after:0},
+          children:[sp(`(${d.expression})`)]
+        }));
+      }
+      // Dialogue
+      if (d.line) {
+        const lines = d.line.split('\n');
+        lines.forEach(line => {
+          children.push(new Paragraph({
+            indent:{left:1800, right:1800},
+            spacing:{before:0, after:0},
+            children:[sp(line)]
+          }));
+        });
+      }
+      children.push(new Paragraph({children:[sp('')]}));
+    });
+
+    // Shots
+    if (s.shots.length > 0) {
+      children.push(new Paragraph({
+        spacing:{before:240, after:0},
+        children:[sp('-- SHOTS --', {italics:true, size:20, color:'888888'})]
+      }));
+      s.shots.forEach((sh, si) => {
+        const name = s.characters[sh.charIdx] || `CHAR ${sh.charIdx+1}`;
+        const noteTxt = sh.notes ? ` — ${sh.notes}` : '';
+        children.push(new Paragraph({
+          spacing:{before:0, after:0},
+          children:[sp(`SHOT ${si+1}: ${sh.type} on ${name}${noteTxt}`, {size:20, color:'4a7aa0'})]
+        }));
+      });
+      children.push(new Paragraph({children:[sp('')]}));
+    }
+
+    // Ending transition
+    if (s.ending) {
+      children.push(new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing:{before:240, after:0},
+        children:[sp(s.ending, {allCaps:true})]
+      }));
+    }
+  });
+
+  // THE END
+  children.push(new Paragraph({spacing:{before:1440,after:0}, alignment:AlignmentType.CENTER, children:[sp('THE END', {bold:true, size:32, allCaps:true})]}));
+
+  const doc = new Document({
+    sections:[{
+      properties:{
+        page:{
+          size:{width:12240, height:15840},
+          margin:{top:1440, right:1440, bottom:1440, left:1440}
+        }
+      },
+      children
+    }]
+  });
+
+  Packer.toBlob(doc).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'screenplay.docx';
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotif('✓ Screenplay exported!');
+  });
+}
+
+function showNotif(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3000);
+}
+
+// ============================================================
+// AUTO-SAVE / LOAD (localStorage)
+// ============================================================
+const SAVE_KEY = 'sceneforge_v1';
+let saveTimer = null;
+
+function saveToStorage() {
+  try {
+    const data = JSON.stringify({ scenes, activeSceneIdx });
+    localStorage.setItem(SAVE_KEY, data);
+    setSaveIndicator('saved');
+  } catch(e) {
+    console.warn('Save failed:', e);
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data.scenes && Array.isArray(data.scenes)) {
+      scenes = data.scenes;
+      activeSceneIdx = typeof data.activeSceneIdx === 'number' ? data.activeSceneIdx : -1;
+      // clamp
+      if (activeSceneIdx >= scenes.length) activeSceneIdx = scenes.length - 1;
+      return true;
+    }
+  } catch(e) {
+    console.warn('Load failed:', e);
+  }
+  return false;
+}
+
+function scheduleSave() {
+  setSaveIndicator('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToStorage, 800);
+}
+
+function setSaveIndicator(state) {
+  const el = document.getElementById('saveIndicator');
+  const label = document.getElementById('saveLabel');
+  if (!el || !label) return;
+  if (state === 'saving') {
+    el.classList.remove('saved');
+    label.textContent = 'saving...';
+  } else if (state === 'saved') {
+    el.classList.add('saved');
+    label.textContent = 'saved ✓';
+    setTimeout(() => {
+      el.classList.remove('saved');
+      label.textContent = 'auto-saved';
+    }, 2000);
+  }
+}
+
+function clearAll() {
+  if (!confirm('Clear all scenes? This cannot be undone.')) return;
+  scenes = [];
+  activeSceneIdx = -1;
+  localStorage.removeItem(SAVE_KEY);
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+  document.getElementById('saveLabel').textContent = 'cleared';
+}
+
+// Patch all mutating functions to trigger save
+const _orig_addScene = addScene;
+const _orig_deleteScene = deleteScene;
+
+// Wrap every setter to also call scheduleSave
+function patchSave(fn) {
+  return function(...args) { fn(...args); scheduleSave(); };
+}
+
+setIntExt    = patchSave(setIntExt);
+setTime      = patchSave(setTime);
+setLocation  = patchSave(setLocation);
+setEnding    = patchSave(setEnding);
+setCharCount = patchSave(setCharCount);
+updateChar   = patchSave(updateChar);
+addDialogue  = patchSave(addDialogue);
+removeDialogue = patchSave(removeDialogue);
+setDialogueChar = patchSave(setDialogueChar);
+setDialogueLine = patchSave(setDialogueLine);
+setExpr      = patchSave(setExpr);
+addShot      = patchSave(addShot);
+removeShot   = patchSave(removeShot);
+setShotType  = patchSave(setShotType);
+setShotChar  = patchSave(setShotChar);
+setShotNotes = patchSave(setShotNotes);
+
+function addScene() {
+  const s = newScene();
+  scenes.push(s);
+  activeSceneIdx = scenes.length - 1;
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+  scheduleSave();
+}
+
+function deleteScene(i) {
+  scenes.splice(i, 1);
+  if (activeSceneIdx >= scenes.length) activeSceneIdx = scenes.length - 1;
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+  scheduleSave();
+}
+
+// ============================================================
+// INIT — load saved data or start fresh
+// ============================================================
+const hadData = loadFromStorage();
+renderSidebar();
+renderEditor();
+renderPreview();
+if (hadData && scenes.length > 0) {
+  document.getElementById('saveLabel').textContent = 'auto-saved';
+  showNotif(`✓ Restored ${scenes.length} scene${scenes.length>1?'s':''} from last session`);
+}
+</script>
+</body>
+</html>
